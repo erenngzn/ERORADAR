@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>POS Radar — Potansiyel Müşteri Bulucu</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <span class="logo-icon">◈</span>
+        <span class="logo-text">POS<strong>Radar</strong></span>
+      </div>
+      <div class="header-badge">Potansiyel Müşteri Keşif Aracı</div>
+    </div>
+    <div class="header-stats" id="headerStats">
+      <div class="stat-pill" id="statToplam">
+        <span class="stat-num">—</span>
+        <span class="stat-lbl">İşletme</span>
+      </div>
+      <div class="stat-pill" id="statTelefon">
+        <span class="stat-num">—</span>
+        <span class="stat-lbl">Telefonlu</span>
+      </div>
+      <div class="stat-pill" id="statYaricap">
+        <span class="stat-num">—</span>
+        <span class="stat-lbl">Yarıçap</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ANA LAYOUT -->
+  <div class="app-layout">
+
+    <!-- SOL PANEL -->
+    <aside class="sol-panel">
+      <div class="arama-kutusu">
+        <h2 class="panel-baslik">Arama Kriterleri</h2>
+
+        <!-- Konum -->
+        <div class="form-grup">
+          <label>Merkez Konum</label>
+          <div class="konum-row">
+            <input type="text" id="konumAdi" placeholder="Haritadan seçin veya GPS kullanın..." readonly />
+            <button class="btn-konum" id="btnKonumAl" title="GPS konumumu kullan">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" opacity=".2"/></svg>
+            </button>
+          </div>
+          <div class="konum-coords" id="konumCoords">Konum alınıyor...</div>
+        </div>
+
+        <!-- Yarıçap -->
+        <div class="form-grup">
+          <label>Arama Yarıçapı: <strong id="yaricapLabel">1000 m</strong></label>
+          <input type="range" id="yaricapSlider" min="200" max="5000" step="100" value="1000" class="slider" />
+          <div class="slider-scale">
+            <span>200m</span><span>1km</span><span>2.5km</span><span>5km</span>
+          </div>
+        </div>
+
+        <!-- OSM Kategoriler -->
+        <div class="form-grup">
+          <label>Hazır Kategoriler</label>
+          <div class="kategori-grid" id="kategoriGrid">
+            <!-- JS ile doldurulacak -->
+          </div>
+        </div>
+
+        <!-- Özel Kategoriler -->
+        <div class="form-grup">
+          <div class="ozel-kat-baslik">
+            <label>Özel Kategoriler</label>
+            <button class="btn-kat-ekle" id="btnKatEkle" title="Yeni özel kategori ekle">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Ekle
+            </button>
+          </div>
+          <div id="ozelKatListesi" class="ozel-kat-listesi">
+            <!-- Dinamik -->
+          </div>
+        </div>
+
+        <!-- Buton alanı -->
+        <div class="btn-row">
+          <button class="btn-ara" id="btnAra" disabled>
+            <span class="btn-ara-ic">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              Ara
+            </span>
+            <span class="btn-ara-yukleniyor" style="display:none">
+              <span class="spinner"></span> Aranıyor...
+            </span>
+          </button>
+          <button class="btn-temizle" id="btnTemizle" style="display:none" title="Sonuçları temizle ve yeni arama yap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+            Temizle
+          </button>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- ORTA: Harita -->
+    <main class="harita-alani">
+      <div id="harita"></div>
+      <div class="harita-info" id="haritaInfo" style="display:none">
+        <span id="haritaInfoText"></span>
+      </div>
+    </main>
+
+    <!-- SAĞ PANEL: Filtre + Liste -->
+    <aside class="sag-panel">
+      <div class="sag-panel-baslik">
+        <h2 class="panel-baslik">Müşteri Listesi</h2>
+        <div class="sag-panel-sayac" id="sagPanelSayac" style="display:none">
+          <span id="sagSayacText"></span>
+        </div>
+      </div>
+
+      <!-- Filtre çubuğu -->
+      <div class="filtre-cubugu" id="filtreCubugu" style="display:none">
+        <label class="filtre-item">
+          <input type="checkbox" id="filtreIletisim" />
+          <span>Sadece iletişim bilgisi olanlar</span>
+        </label>
+        <div class="filtre-kat-sec">
+          <select id="filtreKategori" class="filtre-select">
+            <option value="">Tüm kategoriler</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="sonuc-listesi" id="sonucListesi">
+        <div class="bos-durum">
+          <div class="bos-ikon">◈</div>
+          <p>Konum seçip arama yapın,<br/>potansiyel müşterileriniz burada listelenir.</p>
+        </div>
+      </div>
+
+      <!-- Detay kartı -->
+      <div class="detay-kart" id="detayKart" style="display:none">
+        <button class="detay-kapat" id="detayKapat">✕</button>
+        <div class="detay-icerik" id="detayIcerik"></div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- Özel Kategori Modal -->
+  <div class="modal-overlay" id="modalOverlay" style="display:none">
+    <div class="modal">
+      <div class="modal-baslik">
+        <span>Özel Kategori Ekle</span>
+        <button class="modal-kapat" id="modalKapat">✕</button>
+      </div>
+      <div class="modal-icerik">
+        <div class="form-grup">
+          <label>Kategori Adı</label>
+          <input type="text" id="modalKatAdi" placeholder="örn: Oto Yedek Parça" class="modal-input" />
+        </div>
+        <div class="form-grup">
+          <label>Anahtar Kelimeler <span style="color:var(--text-3);font-weight:400">(virgülle ayırın)</span></label>
+          <textarea id="modalKeywords" placeholder="örn: yedek parça, oto, tamir, lastik" class="modal-textarea"></textarea>
+          <div style="font-size:11px;color:var(--text-3);margin-top:5px">İşletme isimlerinde bu kelimeler aranır.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal-iptal" id="modalIptal">İptal</button>
+        <button class="btn-modal-kaydet" id="modalKaydet">Ekle</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
